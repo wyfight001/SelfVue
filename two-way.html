@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+</head>
+<body>
+<div id="dv">
+	{{ message }}
+	<h1>{{ message }}</h1>
+	<div>
+		<h2>{{ message }}</h2>
+	</div>
+	<input type="text" v-model="message">
+</div>
+	<script>
+	//定义订阅/发布构造函数 EventEmit
+	function EventEmit(){
+		this.callbacks = {};
+	};
+	EventEmit.prototype.on = function(eventName, fn){
+		if(!this.callbacks[eventName]){
+			this.callbacks[eventName] = [];
+		}
+		this.callbacks[eventName].push(fn);
+	};
+	EventEmit.prototype.emit = function(eventName){
+		if(!this.callbacks[eventName]){
+			return;
+		}
+		this.callbacks[eventName].forEach( fn => fn());
+	};
+
+
+	function SelfVue(options){
+		var {el, data} = options;
+		var rootElement = document.querySelector(el);
+		var childNodes = rootElement.childNodes;
+		this._eventEmit = new EventEmit();
+		for(let key in data){
+			Object.defineProperty(this, key, {
+				get(){
+					return data[key];
+				},
+				set(val){
+					console.log('属性被改变了'+key);
+					data[key] = val;
+					this._eventEmit.emit(key);
+				}
+			})
+		}
+		compile.call(this, childNodes);
+	}
+	function compile(nodes){
+		console.log(this);
+		nodes.forEach((node, index) => {
+			switch(node.nodeType){
+				case 1: 
+					//找到input标签
+					if(node.nodeName === "INPUT"){
+						//找到有v-model的input标签
+						var vModel = node.attributes['v-model'];
+						if(!!vModel){
+							node.addEventListener('input', () => {
+								this[vModel.value] = node.value;
+							});
+
+							this._eventEmit.on(vModel.value, () => {
+								node.value = this[vModel.value];
+							})
+						};
+					}
+					compile.call(this, node.childNodes);
+					break;
+				case 3: 
+					var text = node.textContent;
+					if(text.trim()){;
+						var matches = /{{(.+)}}/.exec(text);
+						var event = matches[1].trim();
+						console.log(this);
+						node.textContent = this[event];
+						this._eventEmit.on(event, () => {
+							node.textContent = this[event];
+						})
+					}
+					break;
+				default:
+
+			}
+		})
+	}
+	var app = new SelfVue({
+		el: '#dv',
+		data: {
+			message: 123
+		}
+	});
+	</script>
+</body>
+</html>
